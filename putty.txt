@@ -1,0 +1,1359 @@
+package com.standardchartered.u1603396.module.pdf_21_june.glue;
+
+import java.io.BufferedReader;
+import java.io.InputStream;
+import java.io. * ;
+import java.io.InputStreamReader;
+import java.sql. * ;
+import java.util.Properties;
+import java.util.* ;
+import com.jcraft.jsch. * ;
+import com.standardchartered.genie.model.GenieScenario;
+import cucumber.api.Scenario;
+import cucumber.api.java.After;
+import cucumber.api.java.Before;
+import cucumber.api.java.en.Given;
+import cucumber.api.java.en. * ;
+
+import org.junit.Assert;
+
+public class putty {
+    private GenieScenario genieScenario;
+    JSch jsch = new JSch();
+    Session session;
+    ChannelExec channelExec;
+    InputStream in ;
+    static Properties propUtil = null;
+    public String host = null;
+    public String user = null;
+    public String pwd = null;
+    public String port = null;
+    String country = null;
+    String business_date = null;
+    String next_business_date = null;
+    String last_business_date = null;
+    String DB_Host = null;
+    String DB_Port = null;
+    String DB_Instance = null;
+    String DB_User = null;
+    String DB_Pwd = null;
+    String FileName = null;
+    String FileType = null;
+    String CommandResult = null;
+    String CRM = null;
+    int TotalNumberOfRecords;
+    String strCRMIDs = null;
+    String interFace = null;
+    String strCRM;
+    HashMap < String,String > InterfaceNames = new HashMap < >();
+    String manual_choice_number = null;
+
+    public putty() throws Throwable {
+        try {
+            propUtil = new Properties();
+            propUtil.load(putty.class.getResourceAsStream("/env.properties"));
+            String env = propUtil.getProperty("env");
+            String propFile = "/" + env + ".properties";
+            propUtil = new Properties();
+            propUtil.load(putty.class.getResourceAsStream(propFile));
+            host = propUtil.getProperty("host");
+            user = propUtil.getProperty("user");
+            pwd = propUtil.getProperty("pwd");
+            port = propUtil.getProperty("port");
+            country = propUtil.getProperty("country");
+            business_date = propUtil.getProperty("business_date");
+            next_business_date = propUtil.getProperty("next_business_date");
+            last_business_date = propUtil.getProperty("last_business_date");
+            DB_Host = propUtil.getProperty("DB_Host");
+            DB_Port = propUtil.getProperty("DB_Port");
+            DB_Instance = propUtil.getProperty("DB_Instance");
+            DB_User = propUtil.getProperty("DB_User");
+            DB_Pwd = propUtil.getProperty("DB_Pwd");
+            FileName = propUtil.getProperty("FileName");
+            FileType = propUtil.getProperty("FileType");
+            CRM = propUtil.getProperty("CRM");
+
+        } catch(FileNotFoundException e) {
+            e.printStackTrace();
+
+        }
+    }
+    // ----------------------Flag to skip scenario----------------------------------------------------------------------
+    int Proceed = 0;
+    int Flag = 0;
+
+    @Before
+    public void before(Scenario scenario) {
+
+        if (Flag == 0) {
+            Proceed = 0;
+        } else {
+            Proceed = 1;
+        }
+        genieScenario = (GenieScenario) scenario;
+    }
+
+    @After
+    public void after(Scenario scenario) {
+        if (scenario.isFailed()) {
+            Proceed = 1;
+            Flag = 1;
+        }
+    }
+
+    public String ReturnFileType(String filetype) {
+        String value = null;
+        switch (filetype) {
+            case "DotOpal Transaction File":
+                value = "1";
+                break;
+            case "STS Transaction File":
+                value = "2";
+                break;
+            case "RCMS Transaction File":
+                value = "3";
+                break;
+            case "EBBS Transaction File":
+                value = "4";
+                break;
+            case "MCP Transaction File":
+                value = "5";
+                break;
+            case "EBBS Customer static Data File":
+                value = "6";
+                break;
+            case "EBBS Branch static Data File":
+                value = "7";
+                break;
+            case "EBBS CustSegment static Data File":
+                value = "8";
+                break;
+            case "EBBS ARM static Data File":
+                value = "9";
+                break;
+            case "EBBS Account static Data File":
+                value = "10";
+                break;
+            case "EBBS CustRel static Data File":
+                value = "11";
+                break;
+            case "EBBS REL static Data File":
+                value = "12";
+                break;
+            case "EBBS RelCount static Data File":
+                value = "13";
+                break;
+            case "EBBS RelAddress static Data File":
+                value = "14";
+                break;
+            case "EBBS FXRate static Data File":
+                value = "15";
+                break;
+            case "EBBS Holiday static Data File":
+                value = "16";
+                break;
+            case "EBBS Response file":
+                value = "17";
+                break;
+            case "DOTOPAL Pricing feed - Client Repository":
+                value = "18";
+                break;
+            case "EBBS Pricing feed - Client Repository":
+                value = "19";
+                break;
+            case "RCMS Pricing feed - Client Repository":
+                value = "20";
+                break;
+            case "STS Pricing feed - Client Repository":
+                value = "21";
+                break;
+            case "DOTOPAL Product Static feed - Client Repository":
+                value = "22";
+                break;
+            case "EBBS Product Static feed - Client Repository":
+                value = "23";
+                break;
+            case "RCMS Product Static feed - Client Repository":
+                value = "24";
+                break;
+        }
+        return value;
+    }
+
+    public void login_to_putty(String host, String USERNAME, String PASSWORD, String port) throws Throwable {
+        set_system_parameter();
+
+        try {
+            System.out.println("Entered the try block");
+            session = jsch.getSession(USERNAME, host, Integer.parseInt(port));
+            session.setConfig("StrictHostKeyChecking", "no");
+            session.setConfig("PreferredAuthentications", "publickey,keyboard-interactive,password");
+            session.setPassword(PASSWORD);
+            session.connect();
+
+            channelExec = (ChannelExec) session.openChannel("exec"); in =channelExec.getInputStream();
+            BufferedReader reader = new BufferedReader(new InputStreamReader( in ));
+
+            channelExec.setCommand("cd /uat4/efbs2/eod/eodclient;./operator.sh");
+            OutputStream out = channelExec.getOutputStream();
+            channelExec.connect();
+
+            CommandResult = loop_until(reader, " x. Exit");
+            Thread.sleep(2000);
+            // Region navigation
+            //out.write(("6 : \n").getBytes());
+            out.write(("6 : \n").getBytes());
+            out.flush();
+            CommandResult = loop_until(reader, " x. Exit");
+            Thread.sleep(2000);
+            // Country navigation
+            out.write(("1 : \n").getBytes());
+            //out.write(("11 : \n").getBytes());
+            out.flush();
+            CommandResult = loop_until(reader, " x. Exit");
+            Thread.sleep(5000);
+            //----------------------------- basic navigation completed -------------------------------------------------
+            out.write(("1 : \n").getBytes());
+            out.flush();
+            CommandResult = loop_until(reader, "(Press ENTER key to continue)");
+            if (CommandResult.equals("PASS")) {
+                genieScenario.write("Initialization step completed successfully in putty");
+            }
+            else {
+                genieScenario.write("Initialization step FAILED !!");
+                //Assert.fail();
+            }
+            validate_against_process_job_status_db("initialization");
+            //----------------------------- initialization completed ---------------------------------------------------
+            out.write(("\n").getBytes());
+            out.flush();
+            CommandResult = loop_until(reader, " x. Exit");
+            out.write(("21 : \n").getBytes());
+            out.flush();
+            CommandResult = loop_until(reader, "Select your choice :");
+
+            String Choice = ReturnFileType(FileType);
+            Thread.sleep(2000);
+            out.write((Choice + "\n").getBytes());
+            out.flush();
+            Thread.sleep(7000);
+            CommandResult = loop_until(reader, "Enter the File Name :");
+
+            out.write((FileName + "\n").getBytes());
+            out.flush();
+
+            CommandResult = loop_until(reader, "(Press ENTER key to continue)");
+            if (CommandResult.equals("PASS")) {
+                genieScenario.write("File upload step completed successfully in putty");
+            }
+            else {
+                genieScenario.write("File upload step FAILED !!");
+                //Assert.fail();
+            }
+            validate_against_process_job_status_db("file upload");
+            out.write(("\n").getBytes());
+            out.flush();
+            CommandResult = loop_until(reader, " x. Exit");
+            //----------------------------- file upload completed ------------------------------------------------------
+            out.write(("3 : \n").getBytes());
+            out.flush();
+            Thread.sleep(2000);
+            CommandResult = loop_until(reader, "Please enter an option");
+            Thread.sleep(2000);
+			/*out.write((Choice + "\n").getBytes());
+            out.flush();*/
+            out.write(("1 : \n").getBytes());
+            out.flush();
+            Thread.sleep(2000);
+            out.write(("2 : \n").getBytes());
+            out.flush();
+            CommandResult = loop_until(reader, "(Press ENTER key to continue)");
+            if (CommandResult.equals("PASS")) {
+                genieScenario.write("Attribute derivation step completed successfully in putty");
+            }
+            else {
+                genieScenario.write("Attribute derivation step FAILED !!");
+                //Assert.fail();
+            }
+            validate_against_process_job_status_db("Attribute derivation");
+            validate_txn_common_table("Attribute derivation");
+
+            CommandResult = loop_until(reader, "(Press ENTER key to continue)");
+            out.write(("\n").getBytes());
+            out.flush();
+            CommandResult = loop_until(reader, " x. Exit");
+            Thread.sleep(3000);
+            out.write(("x\n").getBytes());
+            out.flush();
+            Thread.sleep(3000);
+            CommandResult = loop_until(reader, "(Press ENTER key to continue)");
+            out.write(("\n").getBytes());
+            out.flush();
+            Thread.sleep(4000);
+            CommandResult = loop_until(reader, " x. Exit");
+            Thread.sleep(3000);
+            out.write(("x\n").getBytes());
+            out.flush();
+            Thread.sleep(3000);
+            CommandResult = loop_until(reader, "(Press ENTER key to continue)");
+            out.write(("\n").getBytes());
+            out.flush();
+            Thread.sleep(4000);
+            CommandResult = loop_until(reader, " 99. Housekeeping Jobs");
+            //----------------------------- Attribute derivation completed ---------------------------------------------
+            out.write(("4 : \n").getBytes());
+            out.flush();
+            Thread.sleep(2000);
+            CommandResult = loop_until(reader, "Please enter an option:");
+
+            Thread.sleep(2000);
+			/* out.write((Choice + "\n").getBytes());
+            out.flush();*/
+            out.write(("1 : \n").getBytes());
+            out.flush();
+            Thread.sleep(2000);
+            out.write(("2 : \n").getBytes());
+            out.flush();
+            CommandResult = loop_until(reader, "(Press ENTER key to continue)");
+            if (CommandResult.equals("PASS")) {
+                genieScenario.write("Product derivation step completed successfully in putty");
+            }
+            else {
+                genieScenario.write("Product derivation step FAILED !!");
+                //Assert.fail();
+            }
+            validate_against_process_job_status_db("Product derivation");
+            validate_txn_common_table("Product derivation");
+            Update_Billing_Info_table();
+
+            CommandResult = loop_until(reader, "(Press ENTER key to continue)");
+            out.write(("\n").getBytes());
+            out.flush();
+            CommandResult = loop_until(reader, " x. Exit");
+            Thread.sleep(3000);
+            out.write(("x\n").getBytes());
+            out.flush();
+            Thread.sleep(3000);
+            CommandResult = loop_until(reader, "(Press ENTER key to continue)");
+            out.write(("\n").getBytes());
+            out.flush();
+            Thread.sleep(4000);
+            CommandResult = loop_until(reader, " x. Exit");
+            Thread.sleep(3000);
+            out.write(("x\n").getBytes());
+            out.flush();
+            Thread.sleep(3000);
+            CommandResult = loop_until(reader, "(Press ENTER key to continue)");
+            out.write(("\n").getBytes());
+            out.flush();
+            Thread.sleep(4000);
+            CommandResult = loop_until(reader, " 99. Housekeeping Jobs");
+            //----------------------------- Product derivation completed -----------------------------------------------
+
+            out.write(("2 : \n").getBytes());
+            out.flush();
+            Thread.sleep(2000);
+            CommandResult = loop_until(reader, "Please enter an option:");
+            out.write(("1 : \n").getBytes()); // cash option
+            out.flush();
+            Thread.sleep(2000);
+
+            // common daily crm execution
+            out.write(("1 : \n").getBytes()); // Common option
+            out.flush();
+            CommandResult = loop_until(reader, "(Press ENTER key to continue)");
+            out.write(("\n").getBytes());
+            out.flush();
+            Thread.sleep(4000);
+            CommandResult = loop_until(reader, " x. Exit");
+            Thread.sleep(3000);
+            out.write(("x\n").getBytes());
+            out.flush();
+            Thread.sleep(3000);
+            CommandResult = loop_until(reader, "(Press ENTER key to continue)");
+            out.write(("\n").getBytes());
+            out.flush();
+            Thread.sleep(4000);
+            CommandResult = loop_until(reader, " x. Exit");
+            Thread.sleep(3000);
+            out.write(("x\n").getBytes());
+            out.flush();
+            Thread.sleep(3000);
+            CommandResult = loop_until(reader, "(Press ENTER key to continue)");
+            out.write(("\n").getBytes());
+            out.flush();
+            Thread.sleep(4000);
+            CommandResult = loop_until(reader, " 99. Housekeeping Jobs");
+            interFace = "ALL";
+            validate_against_process_job_status_db("Daily CRM - COMMON");
+            validate_txn_common_table_for_crm_mapping("Daily CRM - COMMON");
+
+            // Interface daily crm execution
+            out.write(("2 : \n").getBytes());
+            out.flush();
+            Thread.sleep(2000);
+            CommandResult = loop_until(reader, "Please enter an option:");
+            out.write(("1 : \n").getBytes()); // cash option
+            out.flush();
+            Thread.sleep(2000);
+
+            out.write(("3 : \n").getBytes()); // Interface option
+            out.flush();
+            CommandResult = loop_until(reader, "(Press ENTER key to continue)");
+            out.write(("\n").getBytes());
+            out.flush();
+            Thread.sleep(4000);
+            CommandResult = loop_until(reader, " x. Exit");
+            Thread.sleep(3000);
+            out.write(("x\n").getBytes());
+            out.flush();
+            Thread.sleep(3000);
+            CommandResult = loop_until(reader, "(Press ENTER key to continue)");
+            out.write(("\n").getBytes());
+            out.flush();
+            Thread.sleep(4000);
+            CommandResult = loop_until(reader, " x. Exit");
+            Thread.sleep(3000);
+            out.write(("x\n").getBytes());
+            out.flush();
+            Thread.sleep(3000);
+            CommandResult = loop_until(reader, "(Press ENTER key to continue)");
+            out.write(("\n").getBytes());
+            out.flush();
+            Thread.sleep(4000);
+            CommandResult = loop_until(reader, " 99. Housekeeping Jobs");
+            interFace = "DOTOPAL";
+            validate_against_process_job_status_db("Daily CRM - INTERFACE");
+
+            // Manual daily crm execution
+            out.write(("2 : \n").getBytes());
+            out.flush();
+            Thread.sleep(2000);
+            CommandResult = loop_until(reader, "Please enter an option:");
+            out.write(("1 : \n").getBytes()); // cash option
+            out.flush();
+            Thread.sleep(2000);
+
+            out.write(("7 : \n").getBytes()); // Manual option
+            out.flush();
+            CommandResult = loop_until(reader, "(Press ENTER key to continue)");
+            out.write(("\n").getBytes());
+            out.flush();
+            Thread.sleep(4000);
+            CommandResult = loop_until(reader, " x. Exit");
+            Thread.sleep(3000);
+            out.write(("x\n").getBytes());
+            out.flush();
+            Thread.sleep(3000);
+            CommandResult = loop_until(reader, "(Press ENTER key to continue)");
+            out.write(("\n").getBytes());
+            out.flush();
+            Thread.sleep(4000);
+            CommandResult = loop_until(reader, " x. Exit");
+            Thread.sleep(3000);
+            out.write(("x\n").getBytes());
+            out.flush();
+            Thread.sleep(3000);
+            CommandResult = loop_until(reader, "(Press ENTER key to continue)");
+            out.write(("\n").getBytes());
+            out.flush();
+            Thread.sleep(4000);
+            CommandResult = loop_until(reader, " 99. Housekeeping Jobs");
+
+            interFace = "MANUAL";
+            validate_against_process_job_status_db("Daily CRM - MANUAL");
+
+            //----------------------------- Daily CRM Completed --------------------------------------------------------
+
+            out.write(("5 : \n").getBytes());
+            out.flush();
+            Thread.sleep(2000);
+            CommandResult = loop_until(reader, " x. Exit");
+            out.write(("1 : \n").getBytes()); // cash option
+            out.flush();
+            Thread.sleep(2000);
+            CommandResult = loop_until_read_value(reader, "Billing Interface Menu:");
+
+            String Manual_choice_number = Perform_File_Upload_For_All_The_Interfaces();
+
+            out.write(("2 : \n").getBytes()); // Interface option -DOT OPAL
+            out.flush();
+            Thread.sleep(2000);
+            CommandResult = loop_until(reader, "(Press ENTER key to continue)");
+            if (CommandResult.equals("PASS")) {
+                genieScenario.write("Billing step completed successfully for : " + FileType + " interface in putty");
+            }
+            else {
+                genieScenario.write("Billing step failed for : " + FileType + " interface in putty");
+                //Assert.fail();
+            }
+            interFace="DOTOPAL";
+            Validate_Billing_Job_Status();
+
+            out.write(("\n").getBytes());
+            out.flush();
+            out.write((Manual_choice_number + " : \n").getBytes()); // Manual option
+            out.flush();
+            CommandResult = loop_until(reader, "(Press ENTER key to continue)");
+            if (CommandResult.equals("PASS")) {
+                genieScenario.write("Billing step completed successfully for : Manual interface in putty");
+            }
+            else {
+                genieScenario.write("Billing step failed for : Manual interface in putty");
+                //Assert.fail();
+            }
+            interFace="Manual";
+            Validate_Billing_Job_Status();
+            Validate_txn_common_table_for_Billing();
+            interFace="DOTOPAL";
+            Perform_Billing_For_All_The_Interfaces_Except_Manual_Executed_Interface();
+
+            //----------------------------- Billing job is completed ---------------------------------------------------
+
+            out.write(("6 : \n").getBytes());
+            out.flush();
+            Thread.sleep(2000);
+            CommandResult = loop_until(reader, "(Press ENTER key to continue)");
+            if (CommandResult.equals("PASS")) {
+                genieScenario.write("Cross Product Billing step completed successfully in putty");
+            }
+            else {
+                genieScenario.write("Cross Product Billing step failed in putty");
+                //Assert.fail();
+            }
+            validate_against_process_job_status_db("Cross Product Billing");
+            Validate_txn_common_table_for_Billing();
+
+            //----------------------------- Cross product billing job is completed -------------------------------------
+
+            out.write(("7 : \n").getBytes());
+            out.flush();
+            Thread.sleep(2000);
+            CommandResult = loop_until(reader, "(Press ENTER key to continue)");
+            if (CommandResult.equals("PASS")) {
+                genieScenario.write("Data extraction step completed successfully in putty");
+            }
+            else {
+                genieScenario.write("Data extraction step failed in putty");
+                //Assert.fail();
+            }
+            String DataExtraction_Output;
+            for(int i=0;i<12;i++){
+                DataExtraction_Output=validate_data_extraction_against_process_job_status_db_by_checking_at_frequent_intervals();
+                if(DataExtraction_Output.equals("RUNNING")){
+                    Thread.sleep(600000); // waiting for 10 minutes
+                    continue;
+                }
+                else if(DataExtraction_Output.equals("FAILED")){
+                    break;
+                }
+                else{ //PASSED
+                    break;
+                }
+            }
+            Validate_txn_common_table_for_Data_Extraction();
+            //----------------------------- Data extraction job is completed ------------------------------------------
+
+            out.write(("30 : \n").getBytes());
+            out.flush();
+            Thread.sleep(2000);
+            CommandResult = loop_until(reader, "(Press ENTER key to continue)");
+            if (CommandResult.equals("PASS")) {
+                genieScenario.write("Pre-invoicing step completed successfully in putty");
+            }
+            else {
+                genieScenario.write("Pre-invoicing step failed in putty");
+                //Assert.fail();
+            }
+
+            validate_against_process_job_status_db("Pre-Invoicing");
+            Validate_txn_common_table_for_Pre_Invoicing();
+
+            //----------------------------- pre-invoicing job  is completed --------------------------------------------
+
+            out.write(("15 : \n").getBytes());
+            out.flush();
+            Thread.sleep(2000);
+            CommandResult = loop_until(reader, "Please enter an option:");
+            out.write(("11 : \n").getBytes()); //All option
+            out.flush();
+            Thread.sleep(2000);
+            out.write((business_date + " : \n").getBytes()); //All option
+            out.flush();
+            Thread.sleep(2000);
+            CommandResult = loop_until(reader, "(Press ENTER key to continue)");
+
+            if (CommandResult.equals("PASS")) {
+                genieScenario.write("invoicing step completed successfully in putty");
+            }
+            else {
+                genieScenario.write("invoicing step failed in putty");
+                //Assert.fail();
+            }
+
+            validate_against_process_job_status_db("Invoicing");
+            Validate_txn_common_table_for_Pre_Invoicing();
+
+            //----------------------------- invoicing job  is completed --------------------------------------------
+
+
+            //----------------------------- Disconnect the session -----------------------------------------------------
+            session.disconnect();
+            System.out.println("Disconnected channel and session");
+
+        } catch(Exception e) {
+            System.out.println("Entered the catch block");
+            System.err.println("Error: " + e);
+        }
+
+    }
+
+    public void Validate_Billing_Job_Status() throws ClassNotFoundException {
+        String strQuery1 = "select * from process_job_status where country_code='" + country + "' and business_date='" + business_date + "' and job_NAME='BILLING-VOL' and INTERFACE_NAME='" + interFace + "' order by end_time desc";
+        String strQuery2 = "select * from process_job_status where country_code='" + country + "' and business_date='" + business_date + "' and job_NAME='BILLING-TXN' and INTERFACE_NAME='" + interFace + "' order by end_time desc";
+        String strQuery3 = "select * from process_job_status where country_code='" + country + "' and business_date='" + business_date + "' and job_NAME='BILLING' and INTERFACE_NAME='" + interFace + "' order by end_time desc";
+
+        //Query 1 - To get the distinct count of the value(s) present in the PROCESS_STATUS field
+        try {
+            System.out.println("Query to be executed : " + strQuery1);
+            String dburl = "jdbc:oracle:thin:@" + propUtil.getProperty("DB_Host") + ":" + propUtil.getProperty("DB_Port") + "/" + propUtil.getProperty("DB_Instance");
+            //String url = "jdbc:relique:csv:" + propUtil.getProperty("sheetsBasepath");
+            Class.forName("oracle.jdbc.driver.OracleDriver");
+            System.out.println("*******************************************************************");
+            System.out.println("DB Connection String:" + dburl);
+            Connection connection = DriverManager.getConnection(dburl, propUtil.getProperty("DB_User"), propUtil.getProperty("DB_Pwd"));
+            //String query = "select * from da_customer where country_code='MY'";
+            PreparedStatement statement = connection.prepareStatement(strQuery1);
+            ResultSet rs = statement.executeQuery();
+
+            while (rs.next()) {
+                if (rs.getString("JOB_STATUS").equals("COMPLETED")) {
+                    genieScenario.write("The 'BILLING-VOL' job is validated successfully in the 'PROCESS_JOB_STATUS' table  for the interface : " + interFace);
+                }
+                else {
+                    genieScenario.write("The 'BILLING-VOL' job is validated successfully in the 'PROCESS_JOB_STATUS' table  for the interface : " + interFace + ". The value is : " + rs.getString("JOB_STATUS"));
+                    Assert.fail();
+                }
+            }
+            statement.close();
+            connection.close();
+        }
+        catch(SQLException e) {
+            e.printStackTrace();
+        }
+
+        //Query 2 - To validate that the distinct value present in the PROCESS_STATUS field matches with the expected value of the job that is executed
+        try {
+            System.out.println("Query to be executed : " + strQuery2);
+            String dburl = "jdbc:oracle:thin:@" + propUtil.getProperty("DB_Host") + ":" + propUtil.getProperty("DB_Port") + "/" + propUtil.getProperty("DB_Instance");
+
+            Class.forName("oracle.jdbc.driver.OracleDriver");
+            System.out.println("*******************************************************************");
+            System.out.println("DB Connection String:" + dburl);
+            Connection connection = DriverManager.getConnection(dburl, propUtil.getProperty("DB_User"), propUtil.getProperty("DB_Pwd"));
+            //String query = "select * from da_customer where country_code='MY'";
+            PreparedStatement statement = connection.prepareStatement(strQuery2);
+            ResultSet rs = statement.executeQuery();
+
+            while (rs.next()) {
+                if (rs.getString("JOB_STATUS").equals("COMPLETED")) {
+                    genieScenario.write("The 'BILLING-TXN' job is validated successfully in the 'PROCESS_JOB_STATUS' table  for the interface : " + interFace);
+                }
+                else {
+                    genieScenario.write("The 'BILLING-TXN' job is validated successfully in the 'PROCESS_JOB_STATUS' table  for the interface : " + interFace + ". The value is : " + rs.getString("JOB_STATUS"));
+                    Assert.fail();
+                }
+            }
+            statement.close();
+            connection.close();
+        }
+        catch(SQLException e) {
+            e.printStackTrace();
+        }
+        //Query 3 - To validate that the distinct value present in the PROCESS_STATUS field matches with the expected value of the job that is executed
+        try {
+            System.out.println("Query to be executed : " + strQuery2);
+            String dburl = "jdbc:oracle:thin:@" + propUtil.getProperty("DB_Host") + ":" + propUtil.getProperty("DB_Port") + "/" + propUtil.getProperty("DB_Instance");
+
+            Class.forName("oracle.jdbc.driver.OracleDriver");
+            System.out.println("*******************************************************************");
+            System.out.println("DB Connection String:" + dburl);
+            Connection connection = DriverManager.getConnection(dburl, propUtil.getProperty("DB_User"), propUtil.getProperty("DB_Pwd"));
+            //String query = "select * from da_customer where country_code='MY'";
+            PreparedStatement statement = connection.prepareStatement(strQuery3);
+            ResultSet rs = statement.executeQuery();
+
+            while (rs.next()) {
+                if (rs.getString("JOB_STATUS").equals("COMPLETED")) {
+                    genieScenario.write("The 'BILLING' job is validated successfully in the 'PROCESS_JOB_STATUS' table  for the interface : " + interFace);
+                }
+                else {
+                    genieScenario.write("The 'BILLING' job is validated successfully in the 'PROCESS_JOB_STATUS' table  for the interface : " + interFace + ". The value is : " + rs.getString("JOB_STATUS"));
+                    Assert.fail();
+                }
+            }
+            statement.close();
+            connection.close();
+        }
+        catch(SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public String Perform_File_Upload_For_All_The_Interfaces() throws ClassNotFoundException {
+        String Temp = null;
+        String interface_value = null;
+
+        for (int intA = 1; intA < InterfaceNames.size() - 1; intA++) {
+            Temp = Integer.toString(intA);
+            interface_value = InterfaceNames.get(Temp);
+            if (interface_value.equals("Manual")) {
+                manual_choice_number = Integer.toString(intA);
+            }
+            String strQuery = "insert into \"PROCESS_JOB_STATUS\" (\"COUNTRY_CODE\",\"INTERFACE_NAME\",\"BUSINESS_DATE\",\"JOB_NAME\",\"JOB_STATUS\",\"REMARK\", \"FILE_TYPE\",\"SEQ_NUM\",\"START_TIME\",\"END_TIME\",\"BUSINESS_SEGMENT\")\n"
+                    + "Values ('" + country + "','" + interface_value + "',To_Date('" + business_date + "','DD-MON-RR'),'FILEUPLOAD','COMPLETED',Null,'CURRRATE',1,To_Timestamp('25-NOV-09 10.06.50.142000000 AM','DD-MON-RR HH.MI.SS.FF AM'),\n"
+                    + "To_Timestamp('25-NOV-09 10.08.07.162000000 AM','DD-MON-RR HH.MI.SS.FF AM'),'ALL')";
+            try {
+                System.out.println("Query to be executed : " + strQuery);
+                String dburl = "jdbc:oracle:thin:@" + propUtil.getProperty("DB_Host") + ":" + propUtil.getProperty("DB_Port") + "/" + propUtil.getProperty("DB_Instance");
+                Class.forName("oracle.jdbc.driver.OracleDriver");
+                System.out.println("*******************************************************************");
+                System.out.println("DB Connection String:" + dburl);
+                Connection connection = DriverManager.getConnection(dburl, propUtil.getProperty("DB_User"), propUtil.getProperty("DB_Pwd"));
+                PreparedStatement statement = connection.prepareStatement(strQuery);
+                ResultSet rs = statement.executeQuery();
+                connection.commit();
+                genieScenario.write("The file upload query has been updated for 'PROCESS_JOB_STATUS' for the interface : " + interface_value);
+
+                statement.close();
+                connection.close();
+            }
+            catch(SQLException e) {
+                e.printStackTrace();
+            }
+        }
+        return manual_choice_number;
+    }
+
+    public void Perform_Billing_For_All_The_Interfaces_Except_Manual_Executed_Interface() throws ClassNotFoundException {
+        String Temp = null;
+        String interface_value = null;
+
+        for (int intA = 1; intA < interFace.length() - 1; intA++) {
+            Temp = Integer.toString(intA);
+            interface_value = InterfaceNames.get(Temp);
+            if (interface_value.equals("Manual") || interface_value.equals(interFace))  {
+                //do nothing
+            }
+            else{
+                String strQuery = "insert into \"PROCESS_JOB_STATUS\" (\"COUNTRY_CODE\",\"INTERFACE_NAME\",\"BUSINESS_DATE\",\"JOB_NAME\",\"JOB_STATUS\",\"REMARK\", \"FILE_TYPE\",\"SEQ_NUM\",\"START_TIME\",\"END_TIME\",\"BUSINESS_SEGMENT\")\n" + "Values ('" + country + "','" + interface_value + "',To_Date('" + business_date + "','DD-MON-RR'),'FILEUPLOAD','COMPLETED',Null,'CURRRATE',1,To_Timestamp('25-NOV-09 10.06.50.142000000 AM','DD-MON-RR HH.MI.SS.FF AM'),\n" + "To_Timestamp('25-NOV-09 10.08.07.162000000 AM','DD-MON-RR HH.MI.SS.FF AM'),'ALL');";
+                try {
+                    System.out.println("Query to be executed : " + strQuery);
+                    String dburl = "jdbc:oracle:thin:@" + propUtil.getProperty("DB_Host") + ":" + propUtil.getProperty("DB_Port") + "/" + propUtil.getProperty("DB_Instance");
+                    Class.forName("oracle.jdbc.driver.OracleDriver");
+                    System.out.println("*******************************************************************");
+                    System.out.println("DB Connection String:" + dburl);
+                    Connection connection = DriverManager.getConnection(dburl, propUtil.getProperty("DB_User"), propUtil.getProperty("DB_Pwd"));
+                    PreparedStatement statement = connection.prepareStatement(strQuery);
+                    ResultSet rs = statement.executeQuery();
+                    connection.commit();
+                    genieScenario.write("The BILLING query has been updated for 'PROCESS_JOB_STATUS' for the interface : " + interface_value);
+
+                    statement.close();
+                    connection.close();
+                }
+                catch(SQLException e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+
+    }
+
+
+    public void Update_Billing_Info_table() throws ClassNotFoundException {
+        strCRM = fetch_crm();
+        String strQuery = "update billing_info\n" + "set next_billing_date ='" + business_date + "',\n" + "    next_invoice_date ='" + business_date + "',\n" + "    next_posting_date ='" + business_date + "',\n" + "    previous_billing_date ='" + last_business_date + "',\n" + "    previous_invoice_date ='" + last_business_date + "',\n" + "    previous_posting_date ='" + last_business_date + "',\n" + "    adjusted_billing_date ='" + last_business_date + "',\n" + "    posting_days='0',\n" + "    invoice_days='0'\n" + "    where crm_id\n" + "    IN (" + strCRM + ")";
+        try {
+            System.out.println("Query to be executed : " + strQuery);
+            String dburl = "jdbc:oracle:thin:@" + propUtil.getProperty("DB_Host") + ":" + propUtil.getProperty("DB_Port") + "/" + propUtil.getProperty("DB_Instance");
+
+            Class.forName("oracle.jdbc.driver.OracleDriver");
+            System.out.println("*******************************************************************");
+            System.out.println("DB Connection String:" + dburl);
+            Connection connection = DriverManager.getConnection(dburl, propUtil.getProperty("DB_User"), propUtil.getProperty("DB_Pwd"));
+            //String query = "select * from da_customer where country_code='MY'";
+            PreparedStatement statement = connection.prepareStatement(strQuery);
+            ResultSet rs = statement.executeQuery();
+            connection.commit();
+            genieScenario.write("The billing info table has been updated for the CRM(s) : " + CRM);
+
+            statement.close();
+            connection.close();
+        }
+        catch(SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public String loop_until(BufferedReader rd, String strWord) throws Throwable {
+        String line;
+        String value = null;
+        if (strWord.equals(" x. Exit")) {
+            do {
+                line = rd.readLine();
+                System.out.println(line);
+            } while (! line . contains ( strWord ));
+        }
+        else if (strWord.equals("efbsadmin@DG1364[eodclient] ")) {
+            do {
+                line = rd.readLine();
+                if (line == null) {
+                    //do nothing
+                    return value;
+                }
+
+            } while (! line . contains ( strWord ));
+        }
+        else if (strWord.equals("Please enter an option:")) {
+            do {
+                line = rd.readLine();
+                System.out.println(line);
+            } while (! line . contains ("Please enter an option:"));
+        }
+        else {
+            do {
+                line = rd.readLine();
+                System.out.println(line);
+                if (line.contains("successfully")) {
+                    return "PASS";
+                }
+                else if (line.contains("failed")) {
+                    return "FAIL";
+                }
+                else {
+                    //do nothing
+                }
+
+            } while (! line . contains ( strWord ));
+
+        }
+        return value;
+    }
+
+    public String loop_until_read_value(BufferedReader rd, String strWord) throws Throwable {
+        String line;
+        String value = null;
+        String arrTemp[];
+        if (strWord.equals(" x. Exit")) {
+            do {
+                line = rd.readLine();
+                System.out.println(line);
+            } while (! line . contains ( strWord ));
+        }
+        else if (strWord.equals("Billing Interface Menu:")) {
+            do {
+                line = rd.readLine();
+
+                if (line.contains(".")) {
+                    arrTemp = line.split("\\.");
+                    InterfaceNames.put(arrTemp[0].replace(" ", ""), arrTemp[1].replace(" ", ""));
+                    System.out.println(line);
+                }
+
+                System.out.println("line: " + line);
+            } while (! line . contains ("x. Exit"));
+        }
+        else {
+            do {
+                line = rd.readLine();
+                System.out.println(line);
+                if (line.contains("successfully")) {
+                    return "PASS";
+                }
+                else if (line.contains("failed")) {
+                    return "FAIL";
+                }
+                else {
+                    //do nothing
+                }
+
+            } while (! line . contains ( strWord ));
+
+        }
+        return value;
+    }
+
+    @Given("^Trigger the batch process$")
+    public void Trigger_batch_process() throws ClassNotFoundException,
+            IOException,
+            Throwable {
+        login_to_putty(host, user, pwd, port);
+    }
+
+    @Then("^read the number of records and account ids present in the file$")
+    public void ReadFileandCheckAccountIDs() throws Throwable {
+        BufferedReader input = new BufferedReader(new FileReader(System.getProperty("user.home") + "\\Desktop\\" + FileName));
+        String last = null;
+        String line;
+        int number = 0;
+
+        while ((line = input.readLine()) != null) {
+            last = line;
+            number = number + 1;
+        }
+        System.out.println("The last line is : " + last);
+        String TempLine = last.toString();
+        String Temp[] = TempLine.split("\\|");
+        TotalNumberOfRecords = Integer.parseInt(Temp[1]);
+        TotalNumberOfRecords = number - 2;
+        System.out.println("Total number of records are : " + TotalNumberOfRecords);
+
+    }@Given("^Transfer the file from local to remote path$")
+    public void tranfer_file() throws JSchException,
+            SftpException,
+            Throwable {
+
+        String FileToBeTransferred = System.getProperty("user.home") + "\\Desktop\\" + FileName;
+        session = jsch.getSession(user, host);
+        session.setConfig("StrictHostKeyChecking", "no");
+        session.setConfig("PreferredAuthentications", "publickey,keyboard-interactive,password");
+        session.setPassword(pwd);
+        session.connect();
+
+        ChannelSftp sftpChannel = (ChannelSftp) session.openChannel("sftp");
+        sftpChannel.connect();
+        sftpChannel.put(FileToBeTransferred, "/sit/efbs2/tde/download/" + FileName);
+        Thread.sleep(5000);
+
+    }
+    public String validate_data_extraction_against_process_job_status_db_by_checking_at_frequent_intervals() throws ClassNotFoundException{
+        String strQuery = "select * from process_job_status where country_code='" + country + "' and business_date='" + business_date + "' and job_NAME='DATAEXTRACTING' order by end_time desc";
+        String status=null;
+        try {
+            System.out.println("Query to be executed : " + strQuery);
+            String dburl = "jdbc:oracle:thin:@" + propUtil.getProperty("DB_Host") + ":" + propUtil.getProperty("DB_Port") + "/" + propUtil.getProperty("DB_Instance");
+            Class.forName("oracle.jdbc.driver.OracleDriver");
+            System.out.println("*******************************************************************");
+            System.out.println("DB Connection String:" + dburl);
+            Connection connection = DriverManager.getConnection(dburl, propUtil.getProperty("DB_User"), propUtil.getProperty("DB_Pwd"));
+            PreparedStatement statement = connection.prepareStatement(strQuery);
+            ResultSet rs = statement.executeQuery();
+            while (rs.next()) {
+                if (rs.getString("JOB_STATUS").equals("COMPLETED")) {
+                    genieScenario.write("The 'Data Extraction' is completed successfully and validated against the 'PRCOESS_JOB_STATUS' table in the sql database");
+                    status="PASS";
+                }
+                else if(rs.getString("JOB_STATUS").equals("FAILED")) {
+                    genieScenario.write("The 'Data Extraction' is completed and the status in 'PRCOESS_JOB_STATUS' table in the sql database is 'FAILED'");
+                    status="PASS";
+                }
+                else {
+                    genieScenario.write("The 'Data Extraction' is not executed successfully, the job status is : " + rs.getString("JOB_STATUS") + " 'PRCOESS_JOB_STATUS' table in the sql database");
+                    status=rs.getString("JOB_STATUS") ;
+                }
+            }
+            statement.close();
+            connection.close();
+        }
+        catch(SQLException e) {
+            e.printStackTrace();
+        }
+        return status;
+    }
+
+    public void validate_against_process_job_status_db(String scenario) throws ClassNotFoundException {
+        String strQuery = null;
+        switch (scenario) {
+            case "initialization":
+                strQuery = "select * from process_job_status where country_code='" + country + "' and business_date='" + business_date + "' and job_NAME='INITIALIZING' order by end_time desc";
+                break;
+            case "file upload":
+                strQuery = "select * from process_job_status where country_code='" + country + "' and business_date='" + business_date + "' and job_NAME='FILEUPLOAD' order by end_time desc";
+                break;
+            case "Attribute derivation":
+                strQuery = "select * from process_job_status where country_code='" + country + "' and business_date='" + business_date + "' and job_NAME='ATTRIBUTEDERIVING' order by end_time desc";
+                break;
+            case "Product derivation":
+                strQuery = "select * from process_job_status where country_code='" + country + "' and business_date='" + business_date + "' and job_NAME='FEEDEDUCTPRODUCTDERIVING' order by end_time desc";
+                break;
+            case "Daily CRM - COMMON":
+                strQuery = "select * from process_job_status where country_code='" + country + "' and business_date='" + business_date + "' and job_NAME='DAILYCRMDERIVING' and interface_name='" + interFace + "' order by end_time desc";
+                break;
+            case "Daily CRM - INTERFACE":
+                strQuery = "select * from process_job_status where country_code='" + country + "' and business_date='" + business_date + "' and job_NAME='DAILYCRMDERIVING' and interface_name='" + interFace + "' order by end_time desc";
+                break;
+            case "Daily CRM - MANUAL":
+                strQuery = "select * from process_job_status where country_code='" + country + "' and business_date='" + business_date + "' and job_NAME='DAILYCRMDERIVING' and interface_name='" + interFace + "' order by end_time desc";
+                break;
+            case "Cross Product Billing":
+                strQuery = "select * from process_job_status where country_code='" + country + "' and business_date='" + business_date + "' and job_NAME='CPBILLING' order by end_time desc";
+                break;
+            case "Pre-Invoicing":
+                strQuery = "select * from process_job_status where country_code='" + country + "' and business_date='" + business_date + "' and job_NAME='EODPREINVOICEGENERATION' order by end_time desc";
+                break;
+            case "Invoicing":
+                strQuery = "select * from process_job_status where country_code='" + country + "' and business_date='" + business_date + "' and job_NAME='INVOICING' order by end_time desc";
+                break;
+        }
+
+        try {
+            System.out.println("Query to be executed : " + strQuery);
+            String dburl = "jdbc:oracle:thin:@" + propUtil.getProperty("DB_Host") + ":" + propUtil.getProperty("DB_Port") + "/" + propUtil.getProperty("DB_Instance");
+            //String url = "jdbc:relique:csv:" + propUtil.getProperty("sheetsBasepath");
+            Class.forName("oracle.jdbc.driver.OracleDriver");
+            System.out.println("*******************************************************************");
+            System.out.println("DB Connection String:" + dburl);
+            Connection connection = DriverManager.getConnection(dburl, propUtil.getProperty("DB_User"), propUtil.getProperty("DB_Pwd"));
+            //String query = "select * from da_customer where country_code='MY'";
+            PreparedStatement statement = connection.prepareStatement(strQuery);
+            ResultSet rs = statement.executeQuery();
+            while (rs.next()) {
+                if (rs.getString("JOB_STATUS").equals("COMPLETED")) {
+                    genieScenario.write("The " + scenario + " is completed successfully and validated against the 'PRCOESS_JOB_STATUS' table in the sql database");
+                }
+                else {
+                    genieScenario.write("The " + scenario + " is not executed successfully, the job status is : " + rs.getString("JOB_STATUS") + " 'PRCOESS_JOB_STATUS' table in the sql database");
+                    Assert.fail();
+                }
+            }
+            statement.close();
+            connection.close();
+        }
+        catch(SQLException e) {
+            e.printStackTrace();
+        }
+
+    }
+    public void validate_txn_common_table_for_crm_mapping(String scenario) throws ClassNotFoundException {
+        String strQuery1 = null;
+        strQuery1 = "select crm_id from txn_common where  country_code='" + country + "'and txn_date='" + business_date + "'";
+        try {
+            System.out.println("Query to be executed : " + strQuery1);
+            String dburl = "jdbc:oracle:thin:@" + propUtil.getProperty("DB_Host") + ":" + propUtil.getProperty("DB_Port") + "/" + propUtil.getProperty("DB_Instance");
+            //String url = "jdbc:relique:csv:" + propUtil.getProperty("sheetsBasepath");
+            Class.forName("oracle.jdbc.driver.OracleDriver");
+            System.out.println("*******************************************************************");
+            System.out.println("DB Connection String:" + dburl);
+            Connection connection = DriverManager.getConnection(dburl, propUtil.getProperty("DB_User"), propUtil.getProperty("DB_Pwd"));
+            //String query = "select * from da_customer where country_code='MY'";
+            PreparedStatement statement = connection.prepareStatement(strQuery1);
+            ResultSet rs = statement.executeQuery();
+
+            while (rs.next()) {
+                if (strCRM.contains(rs.getString(1))) {
+                    genieScenario.write("The CRM  : " + rs.getString(1) + " is mapped after running the COMMON JOB");
+                }
+                else {
+                    genieScenario.write("The CRM  : " + rs.getString(1) + " is NOT mapped after running the COMMON JOB");
+                    Assert.fail();
+                }
+
+            }
+            statement.close();
+            connection.close();
+        }
+        catch(SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public void Validate_txn_common_table_for_Billing() throws ClassNotFoundException {
+        String strQuery1 = "select process_status from txn_common where  country_code='" + country + "'and txn_date='" + business_date + "'";
+
+        try {
+            System.out.println("Query to be executed : " + strQuery1);
+            String dburl = "jdbc:oracle:thin:@" + propUtil.getProperty("DB_Host") + ":" + propUtil.getProperty("DB_Port") + "/" + propUtil.getProperty("DB_Instance");
+            //String url = "jdbc:relique:csv:" + propUtil.getProperty("sheetsBasepath");
+            Class.forName("oracle.jdbc.driver.OracleDriver");
+            System.out.println("*******************************************************************");
+            System.out.println("DB Connection String:" + dburl);
+            Connection connection = DriverManager.getConnection(dburl, propUtil.getProperty("DB_User"), propUtil.getProperty("DB_Pwd"));
+            //String query = "select * from da_customer where country_code='MY'";
+            PreparedStatement statement = connection.prepareStatement(strQuery1);
+            ResultSet rs = statement.executeQuery();
+
+            while (rs.next()) {
+                if (rs.getString(1).equals("CHARGECOMPUTED")) {
+                    genieScenario.write("The 'PROCESS_STATUS' field value : CHARGECOMPUTED is validated sucessfully against the TXN COMMON TABLE");
+                }
+                else {
+                    genieScenario.write("The 'PROCESS_STATUS' field value is : " + rs.getString(1)+ " in the TXN COMMON TABLE");
+                    Assert.fail();
+                }
+            }
+            statement.close();
+            connection.close();
+        }
+        catch(SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+
+    public void Validate_txn_common_table_for_Pre_Invoicing() throws ClassNotFoundException {
+        String strQuery1 = "select process_status from txn_common where  country_code='" + country + "'and txn_date='" + business_date + "'";
+
+        try {
+            System.out.println("Query to be executed : " + strQuery1);
+            String dburl = "jdbc:oracle:thin:@" + propUtil.getProperty("DB_Host") + ":" + propUtil.getProperty("DB_Port") + "/" + propUtil.getProperty("DB_Instance");
+            //String url = "jdbc:relique:csv:" + propUtil.getProperty("sheetsBasepath");
+            Class.forName("oracle.jdbc.driver.OracleDriver");
+            System.out.println("*******************************************************************");
+            System.out.println("DB Connection String:" + dburl);
+            Connection connection = DriverManager.getConnection(dburl, propUtil.getProperty("DB_User"), propUtil.getProperty("DB_Pwd"));
+            //String query = "select * from da_customer where country_code='MY'";
+            PreparedStatement statement = connection.prepareStatement(strQuery1);
+            ResultSet rs = statement.executeQuery();
+
+            while (rs.next()) {
+                if (rs.getString(1).equals("INVOICED")) {
+                    genieScenario.write("The 'PROCESS_STATUS' field value : INVOICED is validated sucessfully against the TXN COMMON TABLE");
+                }
+                else {
+                    genieScenario.write("The 'PROCESS_STATUS' field value is : " + rs.getString(1)+ " in the TXN COMMON TABLE");
+                    Assert.fail();
+                }
+            }
+            statement.close();
+            connection.close();
+        }
+        catch(SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+
+    public void Validate_txn_common_table_for_Data_Extraction() throws ClassNotFoundException {
+        String strQuery1 = "select process_status from txn_common where  country_code='" + country + "'and txn_date='" + business_date + "'";
+
+        try {
+            System.out.println("Query to be executed : " + strQuery1);
+            String dburl = "jdbc:oracle:thin:@" + propUtil.getProperty("DB_Host") + ":" + propUtil.getProperty("DB_Port") + "/" + propUtil.getProperty("DB_Instance");
+            //String url = "jdbc:relique:csv:" + propUtil.getProperty("sheetsBasepath");
+            Class.forName("oracle.jdbc.driver.OracleDriver");
+            System.out.println("*******************************************************************");
+            System.out.println("DB Connection String:" + dburl);
+            Connection connection = DriverManager.getConnection(dburl, propUtil.getProperty("DB_User"), propUtil.getProperty("DB_Pwd"));
+            //String query = "select * from da_customer where country_code='MY'";
+            PreparedStatement statement = connection.prepareStatement(strQuery1);
+            ResultSet rs = statement.executeQuery();
+
+            while (rs.next()) {
+                if (rs.getString(1).equals("DATA_EXTRACTED")) {
+                    genieScenario.write("The 'PROCESS_STATUS' field value : DATA_EXTRACTED is validated sucessfully against the TXN COMMON TABLE");
+                }
+                else {
+                    genieScenario.write("The 'PROCESS_STATUS' field value is : " + rs.getString(1)+ " in the TXN COMMON TABLE");
+                    Assert.fail();
+                }
+            }
+            statement.close();
+            connection.close();
+        }
+        catch(SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public void validate_txn_common_table(String scenario) throws ClassNotFoundException {
+        String strQuery1 = null;
+        String strQuery2 = null;
+        String strQuery3 = null;
+        String strQuery2_Expected_Output = null;
+        String strQuery3_Expected_Output = null;
+
+        switch (scenario) {
+            case "Attribute derivation":
+                strQuery1 = "select Count(distinct(PROCESS_STATUS)) from txn_common where country_code='" + country + "'and txn_date='" + business_date + "'";
+                strQuery2 = "select distinct(PROCESS_STATUS) from txn_common where country_code='" + country + "'and txn_date='" + business_date + "'";
+                strQuery2_Expected_Output = "ATTRIBUTEDERIVED";
+                break;
+            case "Product derivation":
+                strQuery1 = "select Count(distinct(PROCESS_STATUS)) from txn_common where country_code='" + country + "'and txn_date='" + business_date + "'";
+                strQuery2 = "select distinct(PROCESS_STATUS) from txn_common where country_code='" + country + "'and txn_date='" + business_date + "'";
+                strQuery3 = "select distinct(DERIVED_PRODUCT) from txn_common where country_code='" + country + "'and txn_date='" + business_date + "'";
+                strQuery2_Expected_Output = "TXNPRODUCTDERIVED";
+                strQuery3_Expected_Output = "NON-PRODUCT";
+                break;
+        }
+
+        //Query 1 - To get the distinct count of the value(s) present in the PROCESS_STATUS field
+        try {
+            System.out.println("Query to be executed : " + strQuery1);
+            String dburl = "jdbc:oracle:thin:@" + propUtil.getProperty("DB_Host") + ":" + propUtil.getProperty("DB_Port") + "/" + propUtil.getProperty("DB_Instance");
+            //String url = "jdbc:relique:csv:" + propUtil.getProperty("sheetsBasepath");
+            Class.forName("oracle.jdbc.driver.OracleDriver");
+            System.out.println("*******************************************************************");
+            System.out.println("DB Connection String:" + dburl);
+            Connection connection = DriverManager.getConnection(dburl, propUtil.getProperty("DB_User"), propUtil.getProperty("DB_Pwd"));
+            //String query = "select * from da_customer where country_code='MY'";
+            PreparedStatement statement = connection.prepareStatement(strQuery1);
+            ResultSet rs = statement.executeQuery();
+
+            while (rs.next()) {
+                if (rs.getString(1).equals("1")) {
+                    genieScenario.write("There is only 1 unique record present in the field  'PROCESS_STATUS' for the scenario : " + scenario + " in TXN_COMMON table");
+                }
+                else {
+                    genieScenario.write("There are more than 1 unique records present in the field  'PROCESS_STATUS' in TXN_COMMON table for the scenario : " + scenario + "The count of the unique record is : " + rs.getRow());
+                    Assert.fail();
+                }
+
+            }
+            statement.close();
+            connection.close();
+        }
+        catch(SQLException e) {
+            e.printStackTrace();
+        }
+
+        //Query 2 - To validate that the distinct value present in the PROCESS_STATUS field matches with the expected value of the job that is executed
+        try {
+            System.out.println("Query to be executed : " + strQuery2);
+            String dburl = "jdbc:oracle:thin:@" + propUtil.getProperty("DB_Host") + ":" + propUtil.getProperty("DB_Port") + "/" + propUtil.getProperty("DB_Instance");
+
+            Class.forName("oracle.jdbc.driver.OracleDriver");
+            System.out.println("*******************************************************************");
+            System.out.println("DB Connection String:" + dburl);
+            Connection connection = DriverManager.getConnection(dburl, propUtil.getProperty("DB_User"), propUtil.getProperty("DB_Pwd"));
+            //String query = "select * from da_customer where country_code='MY'";
+            PreparedStatement statement = connection.prepareStatement(strQuery2);
+            ResultSet rs = statement.executeQuery();
+
+            while (rs.next()) {
+                if (rs.getString(1).toString().equals(strQuery2_Expected_Output)) {
+                    genieScenario.write("There is only 1 unique record present in the field  'PROCESS_STATUS' for the scenario : " + scenario + " and the value is : " + strQuery2_Expected_Output);
+                }
+                else {
+                    genieScenario.write("There are more than 1 unique records present in the field  'PROCESS_STATUS' for the scenario : " + scenario + "The count of the unique record is : " + rs.getRow());
+                    Assert.fail();
+                }
+            }
+            statement.close();
+            connection.close();
+        }
+        catch(SQLException e) {
+            e.printStackTrace();
+        }
+
+        if (scenario.equals("Product derivation")) {
+            //Query 3  - To validate that the distinct value present in the PROCESS_STATUS field matches with the expected value of the job that is executed
+            try {
+                System.out.println("Query to be executed : " + strQuery2);
+                String dburl = "jdbc:oracle:thin:@" + propUtil.getProperty("DB_Host") + ":" + propUtil.getProperty("DB_Port") + "/" + propUtil.getProperty("DB_Instance");
+
+                Class.forName("oracle.jdbc.driver.OracleDriver");
+                System.out.println("*******************************************************************");
+                System.out.println("DB Connection String:" + dburl);
+                Connection connection = DriverManager.getConnection(dburl, propUtil.getProperty("DB_User"), propUtil.getProperty("DB_Pwd"));
+                //String query = "select * from da_customer where country_code='MY'";
+                PreparedStatement statement = connection.prepareStatement(strQuery3);
+                ResultSet rs = statement.executeQuery();
+
+                while (rs.next()) {
+                    if (!rs.getString(1).toString().equals(strQuery3_Expected_Output)) {
+                        genieScenario.write("The 'DERIVED_PRODUCT' value is : " + rs.getString(1));
+                    }
+                    else {
+                        genieScenario.write("The 'DERIVED_PRODUCT' value is : " + rs.getString(1) + ", Expectation is to have values that are not 'NON-PRODUCT'");
+                        //Assert.fail();
+                    }
+                }
+                statement.close();
+                connection.close();
+            }
+            catch(SQLException e) {
+                e.printStackTrace();
+            }
+        }
+
+    }
+
+    public void set_system_parameter() throws ClassNotFoundException {
+
+        String strQuery = "update system_parameters set current_business_date='" + business_date + "', next_business_date='" + next_business_date + "', last_business_date='" + last_business_date + "' where country_code='" + country + "'";
+        try {
+            System.out.println("Query to be executed : " + strQuery);
+            String dburl = "jdbc:oracle:thin:@" + propUtil.getProperty("DB_Host") + ":" + propUtil.getProperty("DB_Port") + "/" + propUtil.getProperty("DB_Instance");
+
+            Class.forName("oracle.jdbc.driver.OracleDriver");
+            System.out.println("*******************************************************************");
+            System.out.println("DB Connection String:" + dburl);
+            Connection connection = DriverManager.getConnection(dburl, propUtil.getProperty("DB_User"), propUtil.getProperty("DB_Pwd"));
+            PreparedStatement statement = connection.prepareStatement(strQuery);
+            ResultSet rs = statement.executeQuery();
+            connection.commit();
+            genieScenario.write("The system parameter has been set with the business date as : " + business_date.toString());
+        }
+        catch(SQLException e) {
+            e.printStackTrace();
+        }
+
+    }
+
+    public void Fetch_the_CRM_Details() throws ClassNotFoundException {
+        try {
+            String strQuery1 = "select distinct(charge_entity_id) from txn_common where country_code='" + country + "' and txn_date='" + business_date + "'";
+            System.out.println("Query to be executed : " + strQuery1);
+            String dburl = "jdbc:oracle:thin:@" + propUtil.getProperty("DB_Host") + ":" + propUtil.getProperty("DB_Port") + "/" + propUtil.getProperty("DB_Instance");
+            //String url = "jdbc:relique:csv:" + propUtil.getProperty("sheetsBasepath");
+            Class.forName("oracle.jdbc.driver.OracleDriver");
+            System.out.println("*******************************************************************");
+            System.out.println("DB Connection String:" + dburl);
+            Connection connection = DriverManager.getConnection(dburl, propUtil.getProperty("DB_User"), propUtil.getProperty("DB_Pwd"));
+            //String query = "select * from da_customer where country_code='MY'";
+            PreparedStatement statement = connection.prepareStatement(strQuery1);
+            ResultSet rs = statement.executeQuery();
+
+            while (rs.next()) {
+                try {
+                    String strQuery2 = "select * from crm_setup where charge_entity_id='" + rs.getString(1) + "'";
+                    System.out.println("Query to be executed : " + strQuery2);
+                    String dburl2 = "jdbc:oracle:thin:@" + propUtil.getProperty("DB_Host") + ":" + propUtil.getProperty("DB_Port") + "/" + propUtil.getProperty("DB_Instance");
+                    Class.forName("oracle.jdbc.driver.OracleDriver");
+                    System.out.println("*******************************************************************");
+                    System.out.println("DB Connection String:" + dburl);
+                    Connection connection2 = DriverManager.getConnection(dburl2, propUtil.getProperty("DB_User"), propUtil.getProperty("DB_Pwd"));
+                    //String query = "select * from da_customer where country_code='MY'";
+                    PreparedStatement statement2 = connection2.prepareStatement(strQuery2);
+                    ResultSet rs2 = statement2.executeQuery();
+                    if (rs2.getRow() == 0) {
+                        // need to insert additional query
+                    }
+                    else {
+                        while (rs2.next()) {
+                            strCRMIDs = strCRMIDs + ";" + rs2.getString(1);
+                        }
+                    }
+
+                    statement.close();
+                    connection.close();
+                }
+                catch(SQLException e) {
+                    e.printStackTrace();
+                }
+
+            }
+            statement.close();
+            connection.close();
+        }
+        catch(SQLException e) {
+            e.printStackTrace();
+        }
+
+    }
+    public String fetch_crm() {
+        //System.out.println(CRM);
+        String arrTemp[] = CRM.split(";");
+        String CorrectedCRMData = "";
+        String strTemp = null;
+        for (int i = 0; i < arrTemp.length; i++) {
+            strTemp = null;
+            strTemp = "'" + arrTemp[i] + "',";
+            CorrectedCRMData = CorrectedCRMData + strTemp;
+        }
+        System.out.println("CorrectedCRMData:" + CorrectedCRMData.substring(0, CorrectedCRMData.length() - 1));
+        return CorrectedCRMData.substring(0, CorrectedCRMData.length() - 1);
+    }
+}

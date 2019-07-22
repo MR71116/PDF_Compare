@@ -1,0 +1,646 @@
+package com.standardchartered.u1603396.module.pdf_21_june.glue;
+
+
+import cucumber.api.java.en.Given;
+import cucumber.api.java.en.Then;
+import cucumber.api.java.en.When;
+
+import org.apache.pdfbox.pdmodel.PDDocument;
+import org.apache.pdfbox.pdmodel.encryption.InvalidPasswordException;
+import org.apache.pdfbox.text.PDFTextStripper;
+import org.apache.pdfbox.text.TextPosition;
+
+import java.awt.*;
+import java.awt.List;
+import java.io.*;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.text.DecimalFormat;
+import java.util.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
+import javax.swing.*;
+
+/**
+ * Created by 1603396 on 6/13/2019.
+ */
+public class pdf_compare_2_0 {
+    public static HashMap<String, Object> old_PDF= new HashMap<>();
+    public static HashMap<String, Object> new_PDF= new HashMap<>();
+    public static int TotalNumberOfLines_OldPDF=0;
+    public static int TotalNumberOfLines_NewPDF=0;
+    public static String[] o_Temp_Content_and_Font_NL;
+    public static String[] o_Content_NL;
+    public static String old_PDF_Content_NL;
+    public static String[] o_Font_Size_NL;
+    public static String old_PDF_Font_Name_NL;
+    public static String old_PDF_Font_Size_NL;
+    public static String[] n_Temp_Content_and_Font_NL;
+    public static String[] n_Content_NL;
+    public static String new_PDF_Content_NL;
+    public static String[] n_Font_Size_NL;
+    public static String new_PDF_Font_Name_NL;
+    public static String new_PDF_Font_Size_NL;
+    public int TotalLinesInFinalFile=0;
+    public static String PDF_PATH="";
+    public static String PDF_Result_PATH="";
+    public static String Current_File_PATH="";
+    public static String Missing_File_PATH="";
+    public static String Macro_File_Path=System.getProperty("user.home") +"\\Documents\\PDF_Macro\\Compare_9_0_V8.xlsm";
+    HashMap<String, String> excelHashMapValues= new HashMap<>();
+
+    //@Given("^compare the pdf files$")
+    public static void compare_the_pdfs(String strSourceFolder,String strDestinationFolder, String strFileName) throws IOException,Throwable{
+        //public void compare_2_pdf() throws IOException {
+        Create_Directory();
+        Create_Final_Result_Directory();
+        Thread.sleep(10000);
+        delete_files();
+        PDF_compare obj =new PDF_compare();
+        old_PDF.clear();
+        new_PDF.clear();
+
+        /*String SourceFolderPath = "C:\\Users\\1603396\\Documents\\PDF_Old\\Prathip\\File_Location\\25_June\\";
+        String DestinationFolderPath="";
+        String Source_PDF = "HK_1082998_CUSTOMER_18475374_20190430.PDF";
+        String Destination_PDF = "HK_1082998_CUSTOMER_18475374_20190430_Micro.pdf";*/
+
+        String SourceFolderPath = strSourceFolder;
+        String DestinationFolderPath=strDestinationFolder;
+        String Source_PDF = strFileName;// + ".PDF";
+        String Destination_PDF =strFileName;// +  ".pdf";
+
+        String Source_txt = PDF_PATH + "\\output_old.txt";
+        String Destination_txt = PDF_PATH + "\\output_new.txt";
+
+        //Extracting the data from the PDF file to a text file, this text file contains all the essential details
+        System.out.println("The Original file data is");
+        System.out.println("----------------------------------------------------------------");
+        obj.extract_data_font_co_ordinates(SourceFolderPath  + "\\" +  Source_PDF);
+        //obj.extract_data_font_co_ordinates(path.toString()); //source file path
+        System.out.println("The Micro file data is");
+        System.out.println("----------------------------------------------------------------");
+        obj.extract_data_font_co_ordinates(DestinationFolderPath + "\\" + Destination_PDF);
+        //obj.extract_data_font_co_ordinates(strDestinationPath + "\\" + FinalDestination_FileName);
+
+
+        update_file(Source_txt);
+        update_file(Destination_txt);
+
+
+        //Extracting the data from the txt files and organizing them for content, font style , font size, co-ordinates
+        extract_data_from_old_txt(Source_txt);
+        extract_data_from_new_txt(Destination_txt);
+
+        //Merging both the txt files
+        merge_both_the_txt_files();
+
+
+        Thread.sleep(30000);
+        Desktop.getDesktop().open(new File(Macro_File_Path));
+        Thread.sleep(40000);
+        killExcel();
+        Runtime.getRuntime().exec("taskkill /IM notepad.exe");
+        //Thread.sleep(10000);
+
+    }
+
+    public static void extract_data_from_old_txt(String strFilePath) throws IOException
+    {
+        int TotalLinesInOLD_PDF=1;
+        BufferedReader reader;
+        int int_Page_Number=1;
+        reader = new BufferedReader(new FileReader(strFilePath));
+        String line = reader.readLine();
+
+        int intLineNumber=1;
+        while (line != null) {
+            if(intLineNumber%2==0) {
+                DecimalFormat df = new DecimalFormat("#");
+                df.setRoundingMode(RoundingMode.CEILING);
+                old_PDF.put("co_ordinates_" + (intLineNumber/2),line);
+                //System.out.println("the value is : "  + "co_ordinates_" + df.format( intLineNumber/2 ));
+            }
+            else {
+
+                /*if(line.contains("Important Note:")){
+                    do {
+                        {
+                            line = reader.readLine();
+                        }
+                    }while(! line.contains("@SC."));
+                }
+                else if(line.contains("Reg. No.")){
+                    line = reader.readLine();
+                    line = reader.readLine();
+                }
+                else */if(line.startsWith("Billing Statement")){
+                    do {
+                        {
+                            line = reader.readLine();
+                        }
+                    }while(check_if_reached_end_of_header(line));
+                    DecimalFormat df = new DecimalFormat("#");
+                    df.setRoundingMode(RoundingMode.CEILING);
+                    int Number=Integer.parseInt(df.format((intLineNumber/2+1)));
+                    old_PDF.put("content_fonts_" + Number,"Page:"+int_Page_Number);
+                    int_Page_Number=int_Page_Number+1;
+                }
+                else{
+                    DecimalFormat df = new DecimalFormat("#");
+                    df.setRoundingMode(RoundingMode.CEILING);
+                    int Number=Integer.parseInt(df.format((intLineNumber/2+1)));
+                    //System.out.println("the value is : "  + "content_fonts_" +Number  );
+                    old_PDF.put("content_fonts_" + Number,line);
+                }
+
+            }
+            intLineNumber=intLineNumber+1;
+            line = reader.readLine();
+            TotalLinesInOLD_PDF=intLineNumber;
+        }
+        reader.close();
+
+        System.out.println("The total lines in the pdf are : " + (TotalLinesInOLD_PDF-2));
+        TotalNumberOfLines_OldPDF=TotalLinesInOLD_PDF/2;
+        System.out.println("The Source Content is");
+        System.out.println("*******************************************");
+		for(int intA=1;intA<(TotalLinesInOLD_PDF/2);intA++){
+			System.out.println("The old pdf content and font for the line : "+ intA +" is : " +old_PDF.get("content_fonts_"+intA));
+			System.out.println("The old pdf co-ordinates are : "+ intA +" is : " +old_PDF.get("co_ordinates_"+(intA)));
+		}
+    }
+
+    public static void extract_data_from_new_txt(String strFilePath) throws IOException
+    {
+        int TotalLinesInNew_PDF=1;
+        BufferedReader reader;
+        int int_Page_Number=1;
+        reader = new BufferedReader(new FileReader(strFilePath));
+        String line = reader.readLine();
+        int intLineNumber=1;
+        while (line != null) {
+            if(intLineNumber%2==0) {
+                new_PDF.put("co_ordinates_" + (intLineNumber/2),line);
+            }
+            else {
+                /*if(line.contains("Important Note:")){
+                    do {
+                        {
+                            line = reader.readLine();
+                        }
+                    }while(! line.contains("@SC."));
+                }
+                else  if(line.contains("Reg. No.")){
+                    line = reader.readLine();
+                    line = reader.readLine();
+                }
+                else */if(line.startsWith("Billing Statement")){
+                    do {
+                        {
+                            line = reader.readLine();
+                        }
+                        //}while(! line.contains("Page"));
+                    }while(check_if_reached_end_of_header(line));
+                    DecimalFormat df = new DecimalFormat("#");
+                    df.setRoundingMode(RoundingMode.CEILING);
+                    int Number=Integer.parseInt(df.format((intLineNumber/2+1)));
+                    new_PDF.put("content_fonts_" + Number,"Page:"+int_Page_Number);
+                    int_Page_Number=int_Page_Number+1;
+                }
+                else{
+                    DecimalFormat df = new DecimalFormat("#");
+                    df.setRoundingMode(RoundingMode.CEILING);
+                    int Number=Integer.parseInt(df.format((intLineNumber/2+1)));
+                    //System.out.println("the value is : "  + "content_fonts_" +Number  );
+                    new_PDF.put("content_fonts_" + Number,line);
+
+
+                }
+
+            }
+            intLineNumber=intLineNumber+1;
+            line = reader.readLine();
+            TotalLinesInNew_PDF=intLineNumber;
+
+        }
+        reader.close();
+        TotalNumberOfLines_NewPDF=TotalLinesInNew_PDF/2;
+        System.out.println("The total lines in the pdf are : " + TotalLinesInNew_PDF);
+        System.out.println("The destination Content is");
+        System.out.println("*******************************************");
+		/*for(int intA=1;intA<(TotalLinesInNew_PDF/2);intA++){
+
+			System.out.println("The new pdf content and font for the line : "+ intA +" is : " +new_PDF.get("content_fonts_"+intA));
+			System.out.println("The new pdf co-ordinates are : "+ intA +" is : " +new_PDF.get("co_ordinates_"+(intA)));
+		}*/
+
+
+
+
+    }
+
+
+    public static void merge_both_the_txt_files() throws IOException
+    {
+        String oPDF_data;
+        String nPDF_data;
+        String oPDF_Font_Name;
+        String nPDF_Font_Name;
+        String oPDF_Font_Size;
+        String nPDF_Font_Size;
+        String oPDF_x;
+        String nPDF_x;
+        String[] o_Temp_Content_and_Font;
+        String[] n_Temp_Content_and_Font;
+        String[] o_Content;
+        String[] n_Content;
+        String old_PDF_Content;
+        String new_PDF_Content;
+        String[] o_FontName;
+        String[] n_Font_Name;
+        String old_PDF_Font_Name;
+        String new_PDF_Font_Name;
+        String[] o_Font_Size;
+        String[] n_Font_Size;
+        String old_PDF_Font_Size;
+        String new_PDF_Font_Size;
+        String[] o_Temp;
+        String[] n_Temp;
+
+        String[] o_co_ordinates;
+        String[] n_co_ordinates;
+        String[] o_xy_values;
+        String[] n_xy_values;
+        String old_pdf_x_value;
+        String old_pdf_y_value;
+        String new_pdf_x_value;
+        String new_pdf_y_value;
+        BufferedWriter writer = new BufferedWriter(new FileWriter(PDF_PATH +"\\Final_txt_file_output.txt"));
+
+
+        int LineLoopCounter=0;
+        if(TotalNumberOfLines_OldPDF>TotalNumberOfLines_NewPDF){
+            LineLoopCounter=TotalNumberOfLines_OldPDF;
+        }
+        else{
+            LineLoopCounter=TotalNumberOfLines_NewPDF;
+        }
+        System.out.println("the loop counter is : " + LineLoopCounter);
+        //for(int intA=1;intA<LineLoopCounter;intA++){ // as the older pdf has more number of lines
+        for(int intA=1;intA<=(LineLoopCounter);intA++){ // as the older pdf has more number of lines
+            System.out.println("The line number is : "+intA);
+            oPDF_data="";
+            nPDF_data="";
+            oPDF_Font_Name="";
+            nPDF_Font_Name="";
+            oPDF_Font_Size="";
+            nPDF_Font_Size="";
+            oPDF_x="";
+            nPDF_x="";
+
+            String OD="";
+            String ND="";
+            String OFN="";
+            String NFN="";
+            String OFS="";
+            String NFS="";
+            String OX="";
+            String NX="";
+            String OY="";
+            String NY="";
+
+            if(old_PDF.get("content_fonts_"+intA)==null && new_PDF.get("content_fonts_"+intA)==null)
+            {
+                // do nothing
+            }
+            else{
+                if(intA>TotalNumberOfLines_OldPDF){
+                    System.out.println("Entered the loop");
+                }
+                else {
+                    if (old_PDF.get("content_fonts_" + intA) == null) {
+
+                    } else {
+                        if(old_PDF.get("content_fonts_" + intA).toString().contains("-->")){
+                            o_Temp_Content_and_Font = old_PDF.get("content_fonts_" + intA).toString().split("-->");
+                            o_Content = o_Temp_Content_and_Font[0].split(":");
+                            old_PDF_Content = o_Content[0].trim();
+                            old_PDF_Content = o_Temp_Content_and_Font[0];
+                            OD = old_PDF_Content;
+                            /*o_Font_Size = o_Temp_Content_and_Font[1].split(" ,Fonts :");
+                            old_PDF_Font_Name = o_Font_Size[0].toString();
+                            OFN = old_PDF_Font_Name;
+                            old_PDF_Font_Size = o_Font_Size[1].toString();
+                            OFS = old_PDF_Font_Size;*/
+                            o_Font_Size = o_Temp_Content_and_Font[1].split("`");
+                            String strTemp2[]=o_Font_Size[1].split("#");
+                            old_PDF_Font_Name = strTemp2[0];
+                            OFN = old_PDF_Font_Name;
+                            old_PDF_Font_Size = o_Font_Size[2].toString();
+                            OFS = old_PDF_Font_Size;
+
+                            o_co_ordinates = old_PDF.get("co_ordinates_" + intA).toString().split("\\)");
+                            o_xy_values = o_co_ordinates[0].split(",");
+                            old_pdf_x_value = o_xy_values[0].substring(3, o_xy_values[0].length());
+                            OX = old_pdf_x_value;
+                            old_pdf_y_value = o_xy_values[1];
+                            OY = old_pdf_y_value;
+                        }
+                        else
+                        {
+                            OD=old_PDF.get("content_fonts_" + intA).toString();
+                        }
+
+
+                    }
+                }
+                if(intA>TotalNumberOfLines_NewPDF){
+                    System.out.println("Entered the loop");
+                    //do nothing
+                }
+                else{
+                    if(new_PDF.get("content_fonts_"+intA)==null)
+                    {
+
+                    }
+                    else {
+                        if (new_PDF.get("content_fonts_" + intA).toString().contains("-->")) {
+                            n_Temp_Content_and_Font = new_PDF.get("content_fonts_" + intA).toString().split("-->");
+                            n_Content = n_Temp_Content_and_Font[0].split(":");
+                            new_PDF_Content = n_Content[0].trim();
+                            new_PDF_Content = n_Temp_Content_and_Font[0];
+                            ND = new_PDF_Content;
+                        /*n_Font_Size = n_Temp_Content_and_Font[1].split(" ,Fonts :");
+                        new_PDF_Font_Name = n_Font_Size[0].toString();
+                        NFN = new_PDF_Font_Name;
+                        new_PDF_Font_Size = n_Font_Size[1].toString();
+                        NFS = new_PDF_Font_Size;*/
+                            System.out.println("the intA value is : " + intA);
+                            n_Font_Size = n_Temp_Content_and_Font[1].split("`");
+                            String strTemp3[] = n_Font_Size[1].split("#");
+
+                            new_PDF_Font_Name = strTemp3[0];
+                            NFN = new_PDF_Font_Name;
+                            new_PDF_Font_Size = n_Font_Size[2].toString();
+                            NFS = new_PDF_Font_Size;
+
+                            n_co_ordinates = new_PDF.get("co_ordinates_" + intA).toString().split("\\)");
+                            n_xy_values = n_co_ordinates[0].split(",");
+                            new_pdf_x_value = n_xy_values[0].substring(3, n_xy_values[0].length());
+                            NX = new_pdf_x_value;
+                            new_pdf_y_value = n_xy_values[1];
+                            NY = new_pdf_y_value;
+                        }
+                        else
+                        {
+                            ND=new_PDF.get("content_fonts_" + intA).toString();
+                        }
+                    }
+                }
+
+
+                /*System.out.println("The Line number is ~ " + intA);
+                System.out.println("The old pdf DATA content is : " + OD);
+                System.out.println("The new pdf DATA content is : " + ND);
+
+                System.out.println("The old pdf FONT NAME is : " + OFN);
+                System.out.println("The new pdf FONT NAME is : " + NFN);
+
+                System.out.println("The old pdf FONT SIZE is : " + OFS);
+                System.out.println("The new pdf FONT SIZE is : " + NFS);
+
+                System.out.println("The old pdf X cordinates is : " + OX);
+                System.out.println("The new pdf X cordinates is : " + NX);
+
+                System.out.println("The old pdf Y cordinates is : " + OY);
+                System.out.println("The new pdf Y cordinates is : " + NY);*/
+                writer.write("The Line number is ~ " + intA);
+                writer.newLine();
+                writer.write("The old pdf DATA content is ~ " + OD);
+                writer.newLine();
+                writer.write("The new pdf DATA content is ~ " + ND);
+                writer.newLine();
+                writer.write("The old pdf FONT NAME is ~ " + OFN);
+                writer.newLine();
+                writer.write("The new pdf FONT NAME is ~ " + NFN);
+                writer.newLine();
+                writer.write("The old pdf FONT SIZE is ~ " + OFS);
+                writer.newLine();
+                writer.write("The new pdf FONT SIZE is ~ " + NFS);
+                writer.newLine();
+                writer.write("The old pdf X cordinates is ~ " + OX);
+                writer.newLine();
+                writer.write("The new pdf X cordinates is ~ " + NX);
+                writer.newLine();
+                writer.write("The old pdf Y cordinates is ~ " + OY);
+                writer.newLine();
+                writer.write("The new pdf Y cordinates is ~ " + NY);
+                writer.newLine();
+
+
+
+
+            }
+
+        }
+
+        writer.close();
+
+    }
+
+
+
+
+
+
+    public void get_Total_number_of_lines_in_new_files() throws IOException  {
+        // TODO Auto-generated method stub
+        LineNumberReader reader  = new LineNumberReader(new FileReader("C:\\Users\\1603396\\Documents\\PDF\\Prathip\\out.txt"));
+        int cnt = 0;
+        String lineRead = "";
+        while ((lineRead = reader.readLine()) != null) {}
+
+        cnt = reader.getLineNumber();
+        reader.close();
+        TotalLinesInFinalFile=cnt;
+        System.out.println("total number of lines in the final file are : "+ cnt);
+    }
+
+    public static boolean check_if_reached_end_of_header(String strLine)
+    {
+        String text    =strLine;
+
+        String regex = "\\d of \\d";
+
+        Pattern pattern = Pattern.compile(regex);
+        Matcher matcher = pattern.matcher(text);
+
+        int count = 0;
+        while(matcher.find()) {
+            count++;
+            System.out.println("found: " + count + " : "
+                    + matcher.start() + " - " + matcher.end());
+        }
+        System.out.println("found: " + count );
+
+        if(count == 0)
+        {
+            return true;
+        }
+        else
+        {
+            return false;
+        }
+    }
+
+    public static void delete_files() throws Throwable{
+        File directory = new File(PDF_PATH);
+        // Get all files in directory
+        File[] files = directory.listFiles();
+        for (File file : files)
+        {
+            //Thread.sleep(5000);
+            // Delete each file
+            if (!file.delete())
+
+            {
+                System.out.println("Failed to delete "+file);
+            }
+        }
+    }
+
+    public static void update_file(String strFileName)
+    {
+        ArrayList<String> lines = new ArrayList<String>();
+        String strTemp;
+        try
+        {
+            File f1 = new File(strFileName);
+            FileReader fr = new FileReader(f1);
+            BufferedReader br = new BufferedReader(fr);
+            String line = br.readLine();
+            while (line  != null)
+            {
+                if (line.toString().startsWith(" [(X="))
+                {
+                    //do nothing as it an even line
+                    lines.add(line);
+                }
+                else{
+                    if(!line.toString().contains("-->")){
+                        strTemp="";
+                        strTemp=line;
+                        line = br.readLine();
+                        line = strTemp + line;
+                        lines.add(line);
+                    }
+                    else{
+                        lines.add(line);
+                    }
+                }
+
+                line = br.readLine();
+            }
+            FileWriter fw = new FileWriter(f1);
+            BufferedWriter out = new BufferedWriter(fw);
+            for(String s : lines){
+                out.write(s);
+                out.newLine();
+            }
+            out.flush();
+            out.close();
+
+            br.close();
+            fr.close();
+        }
+        catch (Exception ex)
+        {
+            ex.printStackTrace();
+        }
+    }
+
+    public static void Create_Directory()
+    {
+        System.out.println("The path is : " + System.getProperty("user.home") +"\\Documents\\PDF"  );
+        PDF_PATH=System.getProperty("user.home") +"\\Documents\\PDF";
+        File file = new File(PDF_PATH);
+        if (!file.exists()) {
+            if (file.mkdir()) {
+                System.out.println("Directory is created!");
+            } else {
+                System.out.println("Failed to create directory!");
+            }
+        }
+    }
+
+    public static void Create_Final_Result_Directory()
+    {
+        System.out.println("The path is : " + System.getProperty("user.home") +"\\Documents\\PDF"  );
+        PDF_Result_PATH=System.getProperty("user.home") +"\\Documents\\PDF_Results_Path";
+        File file = new File(PDF_Result_PATH);
+        if (!file.exists()) {
+            if (file.mkdir()) {
+                System.out.println("Directory is created!");
+            } else {
+                System.out.println("Failed to create directory!");
+            }
+        }
+
+        File file4 = new File(System.getProperty("user.home") +"\\Documents\\Imp_Files");
+        if (!file4.exists()) {
+            if (file4.mkdir()) {
+                System.out.println("Directory is created!");
+            } else {
+                System.out.println("Failed to create directory!");
+            }
+        }
+
+        System.out.println("The path is : " + System.getProperty("user.home") +"\\Documents\\Imp_Files\\Current_File"  );
+        Current_File_PATH=System.getProperty("user.home") +"\\Documents\\Imp_Files\\Current_File";
+        File file2 = new File(Current_File_PATH);
+        if (!file2.exists()) {
+            if (file2.mkdir()) {
+                System.out.println("Directory is created!");
+            } else {
+                System.out.println("Failed to create directory!");
+            }
+        }
+
+        System.out.println("The path is : " + System.getProperty("user.home") +"\\Documents\\Imp_Files\\Missing_File"  );
+        Missing_File_PATH=System.getProperty("user.home") +"\\Documents\\Imp_Files\\Missing_File";
+        File file3 = new File(Missing_File_PATH);
+        if (!file3.exists()) {
+            if (file3.mkdir()) {
+                System.out.println("Directory is created!");
+            } else {
+                System.out.println("Failed to create directory!");
+            }
+        }
+
+
+
+
+    }
+
+    @SuppressWarnings({
+            "unused"
+    })
+    static java.util.List<String> src = new ArrayList<String>();
+
+    public static void killExcel() {
+        try {
+            Runtime.getRuntime().exec("taskkill /f /t /IM EXCEL.EXE");
+            Thread.currentThread().sleep(5000);
+        }
+        catch (IOException | InterruptedException ex) {
+            //Logger.getLogger(ClassName.class.getName()).log(Level.SEVERE, null, ex);
+            System.out.println("Hi");
+        }
+    }
+
+}
+
+
+

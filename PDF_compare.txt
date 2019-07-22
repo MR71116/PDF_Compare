@@ -1,0 +1,159 @@
+package com.standardchartered.u1603396.module.pdf_21_june.glue;
+
+    import java.util.ArrayList;
+    import java.util.HashMap;
+    import javax.swing.filechooser.FileSystemView;
+    import java.io.FileNotFoundException;
+
+    import com.opencsv.CSVReader;
+    import com.opencsv.CSVWriter;
+    import com.standardchartered.genie.model.GenieScenario;
+    import com.standardchartered.genie.module.selenium.SeleniumModule;
+    import com.standardchartered.genie.module.selenium.core.SeleniumService;
+    import cucumber.api.Scenario;
+    import cucumber.api.java.After;
+    import cucumber.api.java.Before;
+    import cucumber.api.java.en.Given;
+    import cucumber.api.java.en.When;
+    import org.apache.log4j.Logger;
+    import org.awaitility.Awaitility;
+    import org.awaitility.Duration;
+    import org.junit.Assert;
+    import org.openqa.selenium.*;
+    import org.openqa.selenium.interactions.Actions;
+    import org.openqa.selenium.support.ui.ExpectedConditions;
+    import org.openqa.selenium.support.ui.Select;
+    import org.openqa.selenium.support.ui.WebDriverWait;
+
+    import java.io.*;
+    import java.math.BigDecimal;
+    import java.math.RoundingMode;
+    //import java.sql.*;
+    import java.text.DecimalFormat;
+    import java.text.ParseException;
+    import java.text.SimpleDateFormat;
+    import java.util.*;
+    import java.util.Date;
+    import java.util.NoSuchElementException;
+    import java.util.concurrent.Callable;
+
+    import static org.junit.Assert.assertEquals;
+    import java.io.ByteArrayOutputStream;
+    import java.io.File;
+    import java.io.IOException;
+    import java.io.OutputStreamWriter;
+    import java.io.Writer;
+    import java.math.BigDecimal;
+    import java.util.ArrayList;
+    import java.util.List;
+
+    import org.apache.pdfbox.pdmodel.PDDocument;
+    import org.apache.pdfbox.pdmodel.encryption.InvalidPasswordException;
+    import org.apache.pdfbox.text.PDFTextStripper;
+    import org.apache.pdfbox.text.TextPosition;
+
+//import com.standardchartered.genie.module.selenium.core.util.SeleniumScreenshotUtil;
+//import com.standardchartered.user.bootstrap.Engine1;
+
+    @SuppressWarnings({
+            "unused"
+    })
+    public class PDF_compare extends PDFTextStripper {
+        static List<String> src = new ArrayList<String>();
+        static List<String> desc = new ArrayList<String>();
+        private static boolean isSrc = false;
+        public String content="";
+        public String coordinates="";
+        public static HashMap<String, Object> pdf_content= new HashMap<>();
+        public static HashMap<String, Object> pdf_co_ordinates= new HashMap<>();
+        public String strContent="";
+        public String strCordinates="";
+
+        public PDF_compare() throws IOException {
+        }
+
+        public  void extract_data_font_co_ordinates (String pdf_path) throws IOException {
+
+            String srcf = pdf_path;
+            if(pdf_path.contains("Destination")){
+                isSrc=false;
+            }
+            else{
+                isSrc=true;
+            }
+            getDataAsList(srcf);
+            compareResult();
+
+        }
+
+
+        private static void compareResult() {
+
+            for(String s:src) {
+                System.out.println(s);
+            }
+            for(String x: desc) {
+                System.out.println(x);
+            }
+
+        }
+
+
+
+        private  void  getDataAsList(String src2) throws InvalidPasswordException, IOException {
+
+            PDDocument document = null;
+            try {
+                document = PDDocument.load( new File(src2) );
+                PDFTextStripper stripper = new PDF_compare();
+                stripper.setSortByPosition( true );
+                stripper.setStartPage( 0 );
+                stripper.setEndPage( document.getNumberOfPages() );
+                Writer dummy = new OutputStreamWriter(new ByteArrayOutputStream());
+                stripper.writeText(document, dummy);
+
+            }
+            finally {
+                if( document != null ) {
+                    document.close();
+                }
+            }
+
+
+        }
+
+
+
+
+        @Override
+        public void writeString(String string, List<TextPosition> textPositions) throws IOException {
+
+           // BufferedWriter writer = new BufferedWriter(new FileWriter( FileSystemView.getFileSystemView().getDefaultDirectory().getPath() + "\\PDF\\" + "Base_Output_File.txt"));
+            //System.out.println(string +" --> Style : "+textPositions.get(0).getFont()+" ,Fonts : "+textPositions.get(0).getFontSize());//textPositions.get(0).getFontSize();
+            strContent= string +" --> Style ` "+textPositions.get(0).getFont()+" #Fonts ` "+textPositions.get(0).getFontSize();
+           /* System.out.println(" [(X=" + new BigDecimal(textPositions.get(0).getXDirAdj()).setScale(2, BigDecimal.ROUND_HALF_UP) + ",Y=" +
+            new BigDecimal(textPositions.get(0).getYDirAdj()).setScale(2, BigDecimal.ROUND_HALF_UP)  + ") height=" +  new BigDecimal(textPositions.get(0).getHeightDir()).setScale(2, BigDecimal.ROUND_HALF_UP) + " width=" +
+            new BigDecimal(textPositions.get(0).getWidthDirAdj()).setScale(2, BigDecimal.ROUND_HALF_UP) + "]");*/
+            strCordinates= " [(X=" + new BigDecimal(textPositions.get(0).getXDirAdj()).setScale(2, BigDecimal.ROUND_HALF_UP) + ",Y=" +
+                    new BigDecimal(textPositions.get(0).getYDirAdj()).setScale(2, BigDecimal.ROUND_HALF_UP)  + ") height=" +  new BigDecimal(textPositions.get(0).getHeightDir()).setScale(2, BigDecimal.ROUND_HALF_UP) + " width=" +
+                    new BigDecimal(textPositions.get(0).getWidthDirAdj()).setScale(2, BigDecimal.ROUND_HALF_UP) + "]";
+
+            String ext = isSrc == true ? "old" : "new";
+            String PDF_PATH=System.getProperty("user.home") +"\\Documents\\PDF";
+            String fileName = PDF_PATH +"\\output_"+ext+".txt";
+            try (FileWriter writer = new FileWriter(fileName,true);
+                 BufferedWriter bw = new BufferedWriter(writer)) {
+
+                bw.write(strContent);
+                bw.newLine();
+                bw.write(strCordinates);
+                bw.newLine();
+
+
+            } catch (IOException e) {
+                System.err.format("IOException: %s%n", e);
+            }
+        }
+
+
+    }
